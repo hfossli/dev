@@ -17,6 +17,37 @@ need_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "Required command not found in PATH: $1"
 }
 
+supports_color() {
+  [ -t 1 ] || return 1
+  [ -z "${NO_COLOR:-}" ] || return 1
+  [ "${TERM:-}" != "dumb" ] || return 1
+
+  if command -v tput >/dev/null 2>&1; then
+    local color_count
+    color_count="$(tput colors 2>/dev/null || printf '0')"
+    [ "${color_count:-0}" -ge 8 ] || return 1
+  fi
+
+  return 0
+}
+
+print_dev_banner() {
+  local -a banner=(
+'                                         '
+'░▒▓███████▓▒░░▒▓████████▓▒░▒▓█▓▒░░▒▓█▓▒░ '
+'░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░ '
+'░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░       ░▒▓█▓▒▒▓█▓▒░  '
+'░▒▓█▓▒░░▒▓█▓▒░▒▓██████▓▒░  ░▒▓█▓▒▒▓█▓▒░  '
+'░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░        ░▒▓█▓▓█▓▒░   '
+'░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░        ░▒▓█▓▓█▓▒░   '
+'░▒▓███████▓▒░░▒▓████████▓▒░  ░▒▓██▓▒░    '
+''
+'Streamline git worktree with dev-script  '
+  )
+
+  printf '%s\n' "${banner[@]}"
+}
+
 cleanup() {
   if [ -n "${TMP_DIR:-}" ] && [ -d "$TMP_DIR" ]; then
     rm -rf "$TMP_DIR"
@@ -71,17 +102,68 @@ label_for_path() {
   fi
 }
 
+should_skip_relative_path() {
+  case "$1" in
+    .DS_Store|*/.DS_Store)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+files_differ() {
+  local source_path="$1"
+  local target_path="$2"
+
+  if ! cmp -s "$source_path" "$target_path"; then
+    return 0
+  fi
+
+  local src_exec=0 target_exec=0
+  [ -x "$source_path" ] && src_exec=1
+  [ -x "$target_path" ] && target_exec=1
+
+  [ "$src_exec" -ne "$target_exec" ]
+}
+
+prompt_overwrite_path() {
+  local rel_path="$1"
+  local answer
+
+  while true; do
+    printf 'Overwrite %s? [y/N]: ' "$rel_path"
+    read -r answer || answer=""
+    case "$answer" in
+      [Yy]|[Yy][Ee][Ss])
+        return 0
+        ;;
+      ""|[Nn]|[Nn][Oo])
+        return 1
+        ;;
+      *)
+        printf 'Please answer yes or no.\n'
+        ;;
+    esac
+  done
+}
+
 prompt_for_confirmation() {
-  local dev_state config_state tools_state
+  local dev_state config_state tools_state setup_state
   dev_state="$(label_for_path ./dev)"
   config_state="$(label_for_path ./dev.config.js)"
   tools_state="$(label_for_path ./dev.tools)"
+  setup_state="$(label_for_path ./dev.setup.sh)"
 
+  print_dev_banner
+  printf '\n'
   printf 'Installing into: %s\n' "$PWD"
   printf 'This installer will create or overwrite:\n'
   printf '  - file: dev (%s)\n' "$dev_state"
   printf '  - file: dev.config.js (%s)\n' "$config_state"
+  printf '  - file: dev.setup.sh (%s)\n' "$setup_state"
   printf '  - folder: dev.tools (%s)\n' "$tools_state"
+  printf '\n'
+  printf 'You will be asked yes/no before overwriting each changed file.\n'
   printf 'Press Enter to continue (Ctrl+C to cancel): '
   read -r _
 }
@@ -124,12 +206,45 @@ resolve_source_dir() {
 install_from_source() {
   local source_dir="$1"
   [ -d "$source_dir" ] || die "Source directory not found: $source_dir"
+  local src_path rel target_path
 
-  if command -v rsync >/dev/null 2>&1; then
-    rsync -a "$source_dir"/ ./
-  else
-    cp -a "$source_dir"/. ./
-  fi
+  while IFS= read -r src_path; do
+    rel="${src_path#$source_dir/}"
+    should_skip_relative_path "$rel" && continue
+    target_path="./$rel"
+
+    if [ -e "$target_path" ] && [ ! -d "$target_path" ]; then
+      die "$target_path exists but is not a folder."
+    fi
+    mkdir -p "$target_path"
+  done < <(find "$source_dir" -mindepth 1 -type d | LC_ALL=C sort)
+
+  while IFS= read -r src_path; do
+    rel="${src_path#$source_dir/}"
+    should_skip_relative_path "$rel" && continue
+    target_path="./$rel"
+
+    if [ -e "$target_path" ] && [ -d "$target_path" ]; then
+      die "$target_path exists but is a folder."
+    fi
+
+    mkdir -p "$(dirname "$target_path")"
+
+    if [ ! -e "$target_path" ]; then
+      cp -a "$src_path" "$target_path"
+      continue
+    fi
+
+    if ! files_differ "$src_path" "$target_path"; then
+      continue
+    fi
+
+    if prompt_overwrite_path "$rel"; then
+      cp -a "$src_path" "$target_path"
+    else
+      printf 'Keeping existing %s\n' "$rel"
+    fi
+  done < <(find "$source_dir" -mindepth 1 \( -type f -o -type l \) | LC_ALL=C sort)
 
   chmod +x ./dev
 }
