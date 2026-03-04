@@ -382,7 +382,7 @@ function ensureAppTarget({ appName, apps, usageText, tmuxSession }) {
 }
 
 function buildTailPaneCommand({ root, sessionOverride, appName, lines }) {
-  const scriptPath = path.join(root, "scripts", "dev-cli");
+  const scriptPath = path.join(root, "dev.tools", "dev-cli");
   const sessionArg = sessionOverride ? ` --session ${shellQuote(sessionOverride)}` : "";
   return (
     `cd ${shellQuote(root)} && ` +

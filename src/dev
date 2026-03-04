@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-exec node "./scripts/dev-cli" "$@"
+exec node "./dev.tools/dev-cli" "$@"

@@ -1,27 +1,34 @@
-const { getWorktreeRoot, leasePort } = require("./scripts/dev-tools.js");
+const { getWorktreeRoot, leasePort } = require("./dev.tools/dev-tools.js");
 
 const config = (session) => {
   const root = getWorktreeRoot(process.cwd());
   const leaseCtx = { cwd: root, session };
-  const port = leasePort({ name: "api", basePort: 8787, ...leaseCtx });
+  const webPort = leasePort({ name: "web", basePort: 3000, ...leaseCtx });
+  const apiPort = leasePort({ name: "api", basePort: 8787, ...leaseCtx });
 
   return {
     apps: {
-      api: {
-        description: "Run next.js app",
+      web: {
+        description: "Run web app",
         start: () => {
-          return `pnpm run dev --port "${port}"`;
+          return `pnpm run dev --port "${webPort}"`;
+        },
+      },
+      api: {
+        description: "Run API app",
+        start: () => {
+          return `pnpm run dev --port "${apiPort}"`;
         },
       },
     },
     tools: {
       pull: {
-        description: "Pull and rebase current branch onto upstream using scripts/pull.",
-        run: "./scripts/pull",
+        description: "Pull and rebase current branch onto upstream using dev.tools/pull.",
+        run: "./dev.tools/pull",
       },
       merge: {
-        description: "Rebase on main and push to origin/main using scripts/merge.",
-        run: "./scripts/merge",
+        description: "Rebase on main and push to origin/main using dev.tools/merge.",
+        run: "./dev.tools/merge",
       },
       submit: {
         description: "Deploy ios app to app store",

@@ -171,7 +171,7 @@ function leasePort({ name, basePort, cwd = process.cwd(), session } = {}) {
   if (!name) throw new Error("leasePort: name is required");
   const root = getWorktreeRoot(cwd);
   const anchorDir = getSessionAnchorDir({ cwd: root, session, name: `port-${name}` });
-  const portleasePath = path.join(root, "scripts", "portlease");
+  const portleasePath = path.join(root, "dev.tools", "portlease");
   const base = getPortBase(name, basePort);
   const out = run(portleasePath, [String(base), "--cwd", anchorDir]);
   const leasedPort = Number(out.stdout);
@@ -190,7 +190,7 @@ function leaseSimulator({
 } = {}) {
   const root = getWorktreeRoot(cwd);
   const anchorDir = getSessionAnchorDir({ cwd: root, session, name: `sim-${name}` });
-  const simLeasePath = path.join(root, "scripts", "ios-sim-lease");
+  const simLeasePath = path.join(root, "dev.tools", "ios-sim-lease");
   const namePrefix = `ai-pranks-${stableShortHash(`${root}\t${session || ""}\t${name}`)}`;
   const args = ["--cwd", anchorDir, "--owner-root", root, "--name-prefix", namePrefix];
   if (runtime) args.push("--runtime", runtime);

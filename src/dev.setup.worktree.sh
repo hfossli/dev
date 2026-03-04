@@ -53,7 +53,7 @@ else
 fi
 
 if [ "$(uname -s)" = "Darwin" ] && command -v xcrun >/dev/null 2>&1; then
-  if "$ROOT_DIR/scripts/ios-sim-lease" --prune; then
+  if "$ROOT_DIR/dev.tools/ios-sim-lease" --prune; then
     echo "Pruned stale iOS simulator leases."
   else
     echo "Warning: failed to prune iOS simulator leases; continuing setup." >&2
