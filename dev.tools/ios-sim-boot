@@ -1,0 +1,161 @@
+#!/usr/bin/env node
+
+const path = require("node:path");
+const { spawnSync } = require("node:child_process");
+
+function usage() {
+  console.log(`ios-sim-boot [udid] [options]
+
+Boots an iOS simulator and prints its UDID.
+If no UDID is provided, leases one from ios-sim-lease first.
+
+Options:
+  --cwd <path>           Passed to ios-sim-lease when UDID is omitted
+  --runtime <spec>       Passed to ios-sim-lease when UDID is omitted
+  --device-type <spec>   Passed to ios-sim-lease when UDID is omitted
+  --name-prefix <prefix> Passed to ios-sim-lease when UDID is omitted
+  --boot                 No-op (kept for compatibility)
+  --focus                Focus Simulator.app on the booted device
+  --verbose              Print diagnostics to stderr
+  -h, --help             Show this help
+`);
+}
+
+function parseArgs(argv) {
+  const args = {
+    udid: "",
+    cwd: "",
+    runtime: "",
+    deviceType: "",
+    namePrefix: "",
+    focus: false,
+    verbose: false,
+  };
+
+  const takeValue = (index, flag) => {
+    const value = argv[index + 1];
+    if (!value || value.startsWith("-")) {
+      throw new Error(`Missing value for ${flag}`);
+    }
+    return value;
+  };
+
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "-h" || a === "--help") {
+      usage();
+      process.exit(0);
+    }
+    if (a === "--focus") {
+      args.focus = true;
+      continue;
+    }
+    if (a === "--boot") {
+      continue;
+    }
+    if (a === "--verbose") {
+      args.verbose = true;
+      continue;
+    }
+    if (a === "--cwd") {
+      args.cwd = takeValue(i, a);
+      i += 1;
+      continue;
+    }
+    if (a === "--runtime") {
+      args.runtime = takeValue(i, a);
+      i += 1;
+      continue;
+    }
+    if (a === "--device-type") {
+      args.deviceType = takeValue(i, a);
+      i += 1;
+      continue;
+    }
+    if (a === "--name-prefix") {
+      args.namePrefix = takeValue(i, a);
+      i += 1;
+      continue;
+    }
+    if (a.startsWith("-")) {
+      throw new Error(`Unknown argument: ${a}`);
+    }
+    if (!args.udid) {
+      args.udid = a;
+      continue;
+    }
+    throw new Error(`Unexpected positional argument: ${a}`);
+  }
+
+  return args;
+}
+
+function run(cmd, cmdArgs, opts = {}) {
+  const r = spawnSync(cmd, cmdArgs, {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  if (r.error) throw r.error;
+  if (r.status !== 0 && !opts.allowFailure) {
+    const stderr = (r.stderr || "").trim();
+    const stdout = (r.stdout || "").trim();
+    const details = stderr || stdout || `exit code ${r.status}`;
+    throw new Error(`${cmd} ${cmdArgs.join(" ")} failed: ${details}`);
+  }
+  return {
+    status: r.status,
+    stdout: (r.stdout || "").trim(),
+    stderr: (r.stderr || "").trim(),
+  };
+}
+
+function log(verbose, message) {
+  if (verbose) process.stderr.write(`[ios-sim-boot] ${message}\n`);
+}
+
+function leaseIfNeeded(args) {
+  if (args.udid) return args.udid;
+
+  const leaseScript = path.join(__dirname, "ios-sim-lease");
+  const leaseArgs = [];
+  if (args.cwd) leaseArgs.push("--cwd", args.cwd);
+  if (args.runtime) leaseArgs.push("--runtime", args.runtime);
+  if (args.deviceType) leaseArgs.push("--device-type", args.deviceType);
+  if (args.namePrefix) leaseArgs.push("--name-prefix", args.namePrefix);
+  if (args.verbose) leaseArgs.push("--verbose");
+
+  const leased = run(leaseScript, leaseArgs).stdout;
+  if (!leased) {
+    throw new Error("ios-sim-lease returned an empty UDID");
+  }
+  return leased;
+}
+
+function main() {
+  if (process.platform !== "darwin") {
+    throw new Error("ios-sim-boot only supports macOS.");
+  }
+
+  const args = parseArgs(process.argv.slice(2));
+  const udid = leaseIfNeeded(args);
+
+  log(args.verbose, `Booting ${udid}`);
+  run("xcrun", ["simctl", "boot", udid], { allowFailure: true });
+  run("xcrun", ["simctl", "bootstatus", udid, "-b"]);
+
+  if (args.focus) {
+    log(args.verbose, `Focusing Simulator.app on ${udid}`);
+    run("open", ["-a", "Simulator", "--args", "-CurrentDeviceUDID", udid], {
+      allowFailure: true,
+    });
+  }
+
+  process.stdout.write(`${udid}\n`);
+}
+
+try {
+  main();
+} catch (err) {
+  process.stderr.write(`ios-sim-boot: ${err.message || String(err)}\n`);
+  process.exit(1);
+}

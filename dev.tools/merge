@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REMOTE="origin"
+MAIN_BRANCH="main"
+
+CURRENT_BRANCH="$(git symbolic-ref --quiet --short HEAD || true)"
+if [ -z "$CURRENT_BRANCH" ]; then
+  CURRENT_BRANCH="DETACHED"
+fi
+
+if [ "$CURRENT_BRANCH" = "$MAIN_BRANCH" ]; then
+  echo "On $MAIN_BRANCH; pushing HEAD to $REMOTE/$MAIN_BRANCH..."
+  git push "$REMOTE" "HEAD:$MAIN_BRANCH"
+  echo ""
+  echo "Merge completed."
+  echo "Source branch: $CURRENT_BRANCH"
+  echo "Remote updated: $REMOTE/$MAIN_BRANCH"
+  exit 0
+fi
+
+echo "Fetching $REMOTE/$MAIN_BRANCH..."
+git fetch "$REMOTE" "$MAIN_BRANCH"
+
+echo "Rebasing $CURRENT_BRANCH onto $REMOTE/$MAIN_BRANCH..."
+git rebase "$REMOTE/$MAIN_BRANCH"
+
+echo "Pushing HEAD to $REMOTE/$MAIN_BRANCH..."
+git push "$REMOTE" "HEAD:$MAIN_BRANCH"
+
+MAIN_WORKTREE_PATH="$(git worktree list --porcelain | awk '
+  $1 == "worktree" { wt = $2 }
+  $1 == "branch" && $2 == "refs/heads/main" { print wt; exit }
+')"
+
+if [ -n "$MAIN_WORKTREE_PATH" ]; then
+  echo "Updating local main at $MAIN_WORKTREE_PATH..."
+  git -C "$MAIN_WORKTREE_PATH" pull --ff-only "$REMOTE" "$MAIN_BRANCH"
+else
+  echo "No dedicated main worktree found; syncing local main ref from $REMOTE/$MAIN_BRANCH..."
+  git fetch "$REMOTE" "$MAIN_BRANCH"
+  if git show-ref --verify --quiet "refs/heads/$MAIN_BRANCH"; then
+    git branch -f "$MAIN_BRANCH" "$REMOTE/$MAIN_BRANCH"
+  else
+    git branch "$MAIN_BRANCH" "$REMOTE/$MAIN_BRANCH"
+  fi
+fi
+
+echo ""
+echo "Merge completed."
+echo "Source branch: $CURRENT_BRANCH"
+echo "Remote updated: $REMOTE/$MAIN_BRANCH"
