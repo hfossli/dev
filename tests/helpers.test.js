@@ -4,7 +4,8 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const { leasePort } = require("../packages/@_dev/helpers");
+const helpers = require("../packages/@_dev/helpers");
+const { leasePort } = helpers;
 
 function listJsFiles(dir) {
   const results = [];
@@ -42,4 +43,16 @@ test("public helpers do not import CLI internals", () => {
     assert.doesNotMatch(source, /packages\/_dev/);
     assert.doesNotMatch(source, /src\/dev\.tools/);
   }
+});
+
+test("public helpers expose utility entrypoints for sim and git workflows", () => {
+  const pkg = require("../packages/@_dev/helpers/package.json");
+
+  assert.equal(typeof helpers.bootSimulator, "function");
+  assert.equal(typeof helpers.pullCurrentBranch, "function");
+  assert.equal(typeof helpers.mergeToMain, "function");
+
+  assert.equal(pkg.bin["ios-sim-boot"], "bin/ios-sim-boot.js");
+  assert.equal(pkg.bin["git-main-pull"], "bin/git-main-pull.js");
+  assert.equal(pkg.bin["git-main-merge"], "bin/git-main-merge.js");
 });

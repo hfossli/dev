@@ -41,71 +41,71 @@ function parseArgs(argv) {
   };
 
   for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (a === "-h" || a === "--help") {
+    const arg = argv[i];
+    if (arg === "-h" || arg === "--help") {
       usage();
       process.exit(0);
     }
-    if (a === "--focus") {
+    if (arg === "--focus") {
       args.focus = true;
       continue;
     }
-    if (a === "--boot") {
+    if (arg === "--boot") {
       continue;
     }
-    if (a === "--verbose") {
+    if (arg === "--verbose") {
       args.verbose = true;
       continue;
     }
-    if (a === "--cwd") {
-      args.cwd = takeValue(i, a);
+    if (arg === "--cwd") {
+      args.cwd = takeValue(i, arg);
       i += 1;
       continue;
     }
-    if (a === "--runtime") {
-      args.runtime = takeValue(i, a);
+    if (arg === "--runtime") {
+      args.runtime = takeValue(i, arg);
       i += 1;
       continue;
     }
-    if (a === "--device-type") {
-      args.deviceType = takeValue(i, a);
+    if (arg === "--device-type") {
+      args.deviceType = takeValue(i, arg);
       i += 1;
       continue;
     }
-    if (a === "--name-prefix") {
-      args.namePrefix = takeValue(i, a);
+    if (arg === "--name-prefix") {
+      args.namePrefix = takeValue(i, arg);
       i += 1;
       continue;
     }
-    if (a.startsWith("-")) {
-      throw new Error(`Unknown argument: ${a}`);
+    if (arg.startsWith("-")) {
+      throw new Error(`Unknown argument: ${arg}`);
     }
     if (!args.udid) {
-      args.udid = a;
+      args.udid = arg;
       continue;
     }
-    throw new Error(`Unexpected positional argument: ${a}`);
+    throw new Error(`Unexpected positional argument: ${arg}`);
   }
 
   return args;
 }
 
 function run(cmd, cmdArgs, opts = {}) {
-  const r = spawnSync(cmd, cmdArgs, {
+  const result = spawnSync(cmd, cmdArgs, {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   });
-  if (r.error) throw r.error;
-  if (r.status !== 0 && !opts.allowFailure) {
-    const stderr = (r.stderr || "").trim();
-    const stdout = (r.stdout || "").trim();
-    const details = stderr || stdout || `exit code ${r.status}`;
-    throw new Error(`${cmd} ${cmdArgs.join(" ")} failed: ${details}`);
+  if (result.error) throw result.error;
+  if (result.status !== 0 && !opts.allowFailure) {
+    const stderr = (result.stderr || "").trim();
+    const stdout = (result.stdout || "").trim();
+    const detail = stderr || stdout || `exit code ${result.status}`;
+    throw new Error(`${cmd} ${cmdArgs.join(" ")} failed: ${detail}`);
   }
   return {
-    status: r.status,
-    stdout: (r.stdout || "").trim(),
-    stderr: (r.stderr || "").trim(),
+    status: result.status,
+    stdout: (result.stdout || "").trim(),
+    stderr: (result.stderr || "").trim(),
   };
 }
 
@@ -116,15 +116,15 @@ function log(verbose, message) {
 function leaseIfNeeded(args) {
   if (args.udid) return args.udid;
 
-  const leaseScript = path.join(__dirname, "ios-sim-lease");
-  const leaseArgs = [];
+  const leaseScript = path.join(__dirname, "ios-sim-lease.js");
+  const leaseArgs = [leaseScript];
   if (args.cwd) leaseArgs.push("--cwd", args.cwd);
   if (args.runtime) leaseArgs.push("--runtime", args.runtime);
   if (args.deviceType) leaseArgs.push("--device-type", args.deviceType);
   if (args.namePrefix) leaseArgs.push("--name-prefix", args.namePrefix);
   if (args.verbose) leaseArgs.push("--verbose");
 
-  const leased = run(leaseScript, leaseArgs).stdout;
+  const leased = run(process.execPath, leaseArgs).stdout;
   if (!leased) {
     throw new Error("ios-sim-lease returned an empty UDID");
   }
@@ -155,7 +155,7 @@ function main() {
 
 try {
   main();
-} catch (err) {
-  process.stderr.write(`ios-sim-boot: ${err.message || String(err)}\n`);
+} catch (error) {
+  process.stderr.write(`ios-sim-boot: ${error.message || String(error)}\n`);
   process.exit(1);
 }

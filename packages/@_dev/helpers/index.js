@@ -3,6 +3,7 @@ const worktree = require("./worktree.js");
 const shell = require("./shell.js");
 const setup = require("./setup.js");
 const ios = require("./ios.js");
+const git = require("./git.js");
 
 module.exports = {
   ...ports,
@@ -10,6 +11,8 @@ module.exports = {
   ...shell,
   ...setup,
   ...ios,
+  ...git,
+  git,
   ios,
   ports,
   setup,

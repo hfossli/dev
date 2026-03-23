@@ -4,6 +4,7 @@
   "main": "index.js",
   "exports": {
     ".": "./index.js",
+    "./git": "./git.js",
     "./ports": "./ports.js",
     "./worktree": "./worktree.js",
     "./shell": "./shell.js",
@@ -11,6 +12,9 @@
     "./ios": "./ios.js"
   },
   "bin": {
+    "git-main-merge": "bin/git-main-merge.js",
+    "git-main-pull": "bin/git-main-pull.js",
+    "ios-sim-boot": "bin/ios-sim-boot.js",
     "portlease": "bin/portlease.js",
     "ios-sim-lease": "bin/ios-sim-lease.js"
   }

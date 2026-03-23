@@ -6,7 +6,7 @@
 
 - `_dev`: CLI runtime and config loader
 - `@_dev/sdk`: public config API via `defineConfig(...)`
-- `@_dev/helpers`: first-party helpers for ports, worktrees, shell commands, setup, and iOS simulator leasing
+- `@_dev/helpers`: first-party utility package for ports, worktrees, shell commands, setup, iOS simulator tooling, and git workflow helpers
 
 ## Official usage
 
@@ -43,11 +43,21 @@ npx _dev start web
 ```
 
 For TypeScript repos, `_dev.config.ts` is also supported.
-If the repo wants a bootstrap script for worktree-specific setup, use `_dev.setup.worktree.sh`.
+If the repo wants a bootstrap script for worktree-specific setup, copy or adapt [examples/worktree/_dev.setup.worktree.sh](/Users/hfossli/Projects/fossli/dev/examples/worktree/_dev.setup.worktree.sh).
+
+## Utility Bins
+
+`@_dev/helpers` is the package home for utility commands:
+
+- `portlease`
+- `ios-sim-lease`
+- `ios-sim-boot`
+- `git-main-pull`
+- `git-main-merge`
 
 ## Examples
 
 - [basic](/Users/hfossli/Projects/fossli/dev/examples/basic/_dev.config.js)
 - [worktree](/Users/hfossli/Projects/fossli/dev/examples/worktree/_dev.config.js)
 
-`install.sh` and the files under `src/` are retained as example/bootstrap assets, but installed packages and `npx` are the primary supported workflow.
+The repo is package-first: runtime code lives under `packages/`, and examples live under `examples/`.
