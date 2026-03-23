@@ -1,0 +1,11 @@
+{
+  "name": "_dev-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "packages/@_dev/*"
+  ],
+  "scripts": {
+    "test": "NODE_PATH=$PWD/packages node --test tests/*.test.js"
+  }
+}

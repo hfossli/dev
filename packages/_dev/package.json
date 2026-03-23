@@ -1,0 +1,7 @@
+{
+  "name": "_dev",
+  "version": "0.1.0",
+  "bin": {
+    "_dev": "bin/_dev.js"
+  }
+}

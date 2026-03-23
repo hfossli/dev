@@ -85,8 +85,12 @@ validate_target_paths() {
     die "./dev exists but is not a file."
   fi
 
-  if [ -e "./dev.config.js" ] && [ ! -f "./dev.config.js" ]; then
-    die "./dev.config.js exists but is not a file."
+  if [ -e "./_dev.config.js" ] && [ ! -f "./_dev.config.js" ]; then
+    die "./_dev.config.js exists but is not a file."
+  fi
+
+  if [ -e "./_dev.setup.worktree.sh" ] && [ ! -f "./_dev.setup.worktree.sh" ]; then
+    die "./_dev.setup.worktree.sh exists but is not a file."
   fi
 
   if [ -e "./dev.tools" ] && [ ! -d "./dev.tools" ]; then
@@ -152,17 +156,19 @@ prompt_overwrite_path() {
 prompt_for_confirmation() {
   local dev_state config_state tools_state setup_state
   dev_state="$(label_for_path ./dev)"
-  config_state="$(label_for_path ./dev.config.js)"
+  config_state="$(label_for_path ./_dev.config.js)"
   tools_state="$(label_for_path ./dev.tools)"
-  setup_state="$(label_for_path ./dev.setup.sh)"
+  setup_state="$(label_for_path ./_dev.setup.worktree.sh)"
 
   print_dev_banner
   printf '\n'
   printf 'Installing into: %s\n' "$PWD"
+  printf 'Note: package installs and npx are the primary supported workflow.\n'
+  printf 'This installer lays down example bootstrap files.\n'
   printf 'This installer will create or overwrite:\n'
   printf '  - file: dev (%s)\n' "$dev_state"
-  printf '  - file: dev.config.js (%s)\n' "$config_state"
-  printf '  - file: dev.setup.sh (%s)\n' "$setup_state"
+  printf '  - file: _dev.config.js (%s)\n' "$config_state"
+  printf '  - file: _dev.setup.worktree.sh (%s)\n' "$setup_state"
   printf '  - folder: dev.tools (%s)\n' "$tools_state"
   printf '\n'
   printf 'You will be asked yes/no before overwriting each changed file.\n'

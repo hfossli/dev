@@ -1,0 +1,17 @@
+{
+  "name": "@_dev/helpers",
+  "version": "0.1.0",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./ports": "./ports.js",
+    "./worktree": "./worktree.js",
+    "./shell": "./shell.js",
+    "./setup": "./setup.js",
+    "./ios": "./ios.js"
+  },
+  "bin": {
+    "portlease": "bin/portlease.js",
+    "ios-sim-lease": "bin/ios-sim-lease.js"
+  }
+}
