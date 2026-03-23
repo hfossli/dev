@@ -2,8 +2,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { createRequire, stripTypeScriptTypes } = require("node:module");
 const { pathToFileURL } = require("node:url");
-const { isDefinedConfig } = require("../../../../@_dev/sdk");
-const { sessionName } = require("../../../../@_dev/helpers/worktree.js");
+const { isDefinedConfig } = require("@_dev/sdk");
+const { sessionName } = require("@_dev/helpers/worktree");
 const { normalizeRuntimeConfig } = require("./normalize-config.js");
 const { createUsageError } = require("./normalize-config.js");
 
