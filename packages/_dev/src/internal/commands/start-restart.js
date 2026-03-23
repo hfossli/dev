@@ -9,7 +9,7 @@ function buildWrappedCommand(root, command) {
 
 function handleStartOrRestart(parsed, runtime) {
   const { apps, appNames, root, tmux, tmuxSession, usageText } = runtime;
-    const isRestart = parsed.command === "restart";
+  const isRestart = parsed.command === "restart";
 
   if (!parsed.app) {
     const error = new Error(usageText);
@@ -20,7 +20,6 @@ function handleStartOrRestart(parsed, runtime) {
 
   tmux.ensureInstalled();
   let sessionExists = tmux.sessionExists(tmuxSession);
-  let defaultAttachWindow = "";
 
   if (parsed.app === "all") {
     if (appNames.length === 0) {
@@ -68,7 +67,6 @@ function handleStartOrRestart(parsed, runtime) {
     for (const entry of startEntries) {
       process.stdout.write(`- ${entry.name}: ${entry.wrappedCommand}\n`);
     }
-    defaultAttachWindow = appNames[0];
   } else {
     if (!Object.prototype.hasOwnProperty.call(apps, parsed.app)) {
       dieWithUsage(`Error: unknown app "${parsed.app}"`, usageText);
@@ -95,28 +93,24 @@ function handleStartOrRestart(parsed, runtime) {
       `${isRestart ? "Restarted" : "Started"} app "${parsed.app}" in session "${tmuxSession}" (window "${parsed.app}").\n`
     );
     process.stdout.write(`Command: ${wrappedCommand}\n`);
-    defaultAttachWindow = parsed.app;
   }
 
   tmux.enableMouse(tmuxSession);
 
-  if (parsed.splitAttachRequested) {
-    const lines = resolveLineCount(parsed.linesOverride);
-    tmux.openSplitAttachWindow({
-      root,
-      tmuxSession,
-      appNames,
-      lines,
-    });
-    tmux.attachSession(tmuxSession);
-    return;
-  }
-
   if (parsed.attachRequested) {
-    if (defaultAttachWindow) {
-      tmux.selectWindow(tmuxSession, defaultAttachWindow);
+    if (parsed.app === "all") {
+      const lines = resolveLineCount(parsed.linesOverride);
+      tmux.openSplitAttachWindow({
+        root,
+        tmuxSession,
+        appNames,
+        lines,
+      });
+    } else {
+      tmux.selectWindow(tmuxSession, parsed.app);
     }
     tmux.attachSession(tmuxSession);
+    return;
   }
 }
 

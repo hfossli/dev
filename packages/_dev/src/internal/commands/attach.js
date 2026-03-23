@@ -1,14 +1,8 @@
 const { createUsageError } = require("../config/normalize-config.js");
+const { ensureAppDefined, resolveLineCount } = require("./shared.js");
 
 function handleAttach(parsed, runtime) {
-  const { tmux, tmuxSession, usageText } = runtime;
-
-  if (parsed.app) {
-    const error = new Error("Error: attach does not take an app argument.");
-    error.isUsageError = true;
-    error.usageText = usageText;
-    throw error;
-  }
+  const { appNames, apps, root, tmux, tmuxSession, usageText } = runtime;
 
   tmux.ensureInstalled();
 
@@ -17,6 +11,30 @@ function handleAttach(parsed, runtime) {
   }
 
   tmux.enableMouse(tmuxSession);
+
+  if (parsed.app) {
+    if (parsed.linesOverride !== null) {
+      const error = new Error("Error: attach <app> does not support --lines.");
+      error.isUsageError = true;
+      error.usageText = usageText;
+      throw error;
+    }
+
+    ensureAppDefined({ appName: parsed.app, apps, usageText });
+    if (!tmux.windowExists(tmuxSession, parsed.app)) {
+      throw createUsageError(`Error: window "${parsed.app}" does not exist in session "${tmuxSession}".`);
+    }
+    tmux.selectWindow(tmuxSession, parsed.app);
+    tmux.attachSession(tmuxSession);
+    return;
+  }
+
+  tmux.openSplitAttachWindow({
+    root,
+    tmuxSession,
+    appNames,
+    lines: resolveLineCount(parsed.linesOverride),
+  });
   tmux.attachSession(tmuxSession);
 }
 
