@@ -23,9 +23,9 @@ test("defineConfig marks modern configs", () => {
 test("loadRuntimeConfig loads modern defineConfig configs with runtime context", async () => {
   const dir = makeTempDir();
   fs.writeFileSync(
-    path.join(dir, "_dev.config.js"),
+    path.join(dir, "dev.config.js"),
     [
-      'const { defineConfig } = require("@_dev/sdk");',
+      'const { defineConfig } = require("@hfossli/dev-sdk");',
       "",
       "module.exports = defineConfig(({ root, cwd, session, env, platform }) => ({",
       "  apps: {",
@@ -52,7 +52,7 @@ test("loadRuntimeConfig loads modern defineConfig configs with runtime context",
 test("loadRuntimeConfig supports legacy config(session) and emits a deprecation warning", async () => {
   const dir = makeTempDir();
   fs.writeFileSync(
-    path.join(dir, "_dev.config.js"),
+    path.join(dir, "dev.config.js"),
     "module.exports = (session) => ({ apps: { api: { start: () => `echo ${session}` } } });\n"
   );
 
@@ -82,7 +82,7 @@ test("loadRuntimeConfig supports legacy config(session) and emits a deprecation 
 
 test("loadRuntimeConfig rejects invalid exports with a focused error", async () => {
   const dir = makeTempDir();
-  fs.writeFileSync(path.join(dir, "_dev.config.js"), "module.exports = { nope: true };\n");
+  fs.writeFileSync(path.join(dir, "dev.config.js"), "module.exports = { nope: true };\n");
 
   await assert.rejects(
     () =>
@@ -95,20 +95,20 @@ test("loadRuntimeConfig rejects invalid exports with a focused error", async () 
   );
 });
 
-test("findConfigPath prefers _dev.config.js over legacy names", () => {
+test("findConfigPath prefers dev.config.js over legacy names", () => {
   const dir = makeTempDir();
-  fs.writeFileSync(path.join(dir, "dev.config.js"), "module.exports = () => ({ apps: {} });\n");
   fs.writeFileSync(path.join(dir, "_dev.config.js"), "module.exports = () => ({ apps: {} });\n");
+  fs.writeFileSync(path.join(dir, "dev.config.js"), "module.exports = () => ({ apps: {} });\n");
 
-  assert.equal(findConfigPath(dir), path.join(dir, "_dev.config.js"));
+  assert.equal(findConfigPath(dir), path.join(dir, "dev.config.js"));
 });
 
-test("loadRuntimeConfig loads _dev.config.ts with TypeScript syntax", async () => {
+test("loadRuntimeConfig loads dev.config.ts with TypeScript syntax", async () => {
   const dir = makeTempDir();
   fs.writeFileSync(
-    path.join(dir, "_dev.config.ts"),
+    path.join(dir, "dev.config.ts"),
     [
-      'import { defineConfig } from "@_dev/sdk";',
+      'import { defineConfig } from "@hfossli/dev-sdk";',
       "",
       "type Ctx = { root: string; session: string };",
       "",
@@ -135,7 +135,7 @@ test("loadRuntimeConfig loads _dev.config.ts with TypeScript syntax", async () =
 
 test("loadRuntimeConfig warns when using the legacy filename", async () => {
   const dir = makeTempDir();
-  fs.writeFileSync(path.join(dir, "dev.config.js"), "module.exports = () => ({ apps: {} });\n");
+  fs.writeFileSync(path.join(dir, "_dev.config.js"), "module.exports = () => ({ apps: {} });\n");
 
   let stderr = "";
   const originalWrite = process.stderr.write;
@@ -151,7 +151,7 @@ test("loadRuntimeConfig warns when using the legacy filename", async () => {
       root: dir,
       cwd: dir,
       session: "legacy-file",
-      configPath: path.join(dir, "dev.config.js"),
+      configPath: path.join(dir, "_dev.config.js"),
     });
   } finally {
     process.stderr.write = originalWrite;

@@ -1,11 +1,12 @@
 {
-  "name": "_dev",
+  "name": "@hfossli/dev",
   "version": "0.1.0",
   "dependencies": {
-    "@_dev/helpers": "0.1.0",
-    "@_dev/sdk": "0.1.0"
+    "@hfossli/dev-helpers": "0.1.0",
+    "@hfossli/dev-sdk": "0.1.0"
   },
   "bin": {
+    "dev": "bin/_dev.js",
     "_dev": "bin/_dev.js"
   }
 }

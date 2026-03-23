@@ -23,7 +23,7 @@ function handleStartOrRestart(parsed, runtime) {
 
   if (parsed.app === "all") {
     if (appNames.length === 0) {
-      throw createUsageError("Error: no apps are configured in the active _dev config.");
+      throw createUsageError("Error: no apps are configured in the active dev config.");
     }
 
     if (!isRestart && sessionExists) {

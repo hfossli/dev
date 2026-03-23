@@ -1,0 +1,5 @@
+{
+  "name": "@hfossli/dev-helpers",
+  "private": true,
+  "main": "index.js"
+}
