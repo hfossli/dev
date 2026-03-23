@@ -444,6 +444,10 @@ function attachTmuxSession(tmuxSession) {
   });
 }
 
+function enableTmuxMouse(tmuxSession) {
+  run("tmux", ["set-option", "-t", tmuxSession, "mouse", "on"]);
+}
+
 function dieWithUsage(message, usageText, code = 1) {
   process.stderr.write(`${message}\n\n${usageText}\n`);
   process.exit(code);
@@ -685,6 +689,8 @@ async function main() {
       defaultAttachWindow = parsed.app;
     }
 
+    enableTmuxMouse(tmuxSession);
+
     if (parsed.splitAttachRequested) {
       const lines = resolveLineCount(parsed.linesOverride);
       openSplitAttachWindow({
@@ -855,6 +861,7 @@ async function main() {
       die(`Error: session "${tmuxSession}" does not exist.`);
     }
 
+    enableTmuxMouse(tmuxSession);
     const lines = resolveLineCount(parsed.linesOverride);
     openSplitAttachWindow({
       root,
@@ -878,6 +885,7 @@ async function main() {
       die(`Error: session "${tmuxSession}" does not exist.`);
     }
 
+    enableTmuxMouse(tmuxSession);
     attachTmuxSession(tmuxSession);
     return;
   }
