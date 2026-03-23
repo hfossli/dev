@@ -1,2 +1,4 @@
 .DS_Store
 .tmp-test-portlease/
+node_modules/
+pnpm-lock.yaml

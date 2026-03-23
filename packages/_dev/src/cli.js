@@ -16,7 +16,7 @@ const { handleAttach } = require("./internal/commands/attach.js");
 
 function buildRuntime({ root, config, configPath }) {
   const sessionId = sessionName(root);
-  const tmuxSession = `dev-e2e-${sessionId}`;
+  const tmuxSession = `dev-${sessionId}`;
   const apps = config.apps;
   const tools = config.tools;
   const appNames = Object.keys(apps).sort();
