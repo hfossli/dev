@@ -1,5 +1,5 @@
 {
-  "name": "@_dev/helpers",
+  "name": "@hfossli/dev-helpers",
   "version": "0.1.0",
   "main": "index.js",
   "exports": {

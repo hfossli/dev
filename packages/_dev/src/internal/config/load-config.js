@@ -2,18 +2,18 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { createRequire, stripTypeScriptTypes } = require("node:module");
 const { pathToFileURL } = require("node:url");
-const { isDefinedConfig } = require("../../../../@_dev/sdk");
-const { sessionName } = require("../../../../@_dev/helpers/worktree.js");
+const { isDefinedConfig } = require("@hfossli/dev-sdk");
+const { sessionName } = require("@hfossli/dev-helpers/worktree");
 const { normalizeRuntimeConfig } = require("./normalize-config.js");
 const { createUsageError } = require("./normalize-config.js");
 
 const CONFIG_CANDIDATE_FILENAMES = [
-  "_dev.config.js",
-  "_dev.config.ts",
   "dev.config.js",
   "dev.config.ts",
+  "_dev.config.js",
+  "_dev.config.ts",
 ];
-const LEGACY_CONFIG_FILENAMES = new Set(["dev.config.js", "dev.config.ts"]);
+const LEGACY_CONFIG_FILENAMES = new Set(["_dev.config.js", "_dev.config.ts"]);
 
 function stripConfigTypeScript(sourceCode) {
   const originalEmitWarning = process.emitWarning;
@@ -162,7 +162,7 @@ function warnLegacyConfig(configPath) {
 function warnLegacyFilename(configPath) {
   process.stderr.write(
     `[deprecation] ${configPath} uses the legacy config filename. ` +
-      `Rename it to _dev.config.js or _dev.config.ts.\n`
+      `Rename it to dev.config.js or dev.config.ts.\n`
   );
 }
 

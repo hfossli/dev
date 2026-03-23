@@ -3,6 +3,10 @@ const { run } = require("./process.js");
 const { shellQuote } = require("./shell.js");
 
 function createTmuxController({ cliScriptPath, runCommand = run } = {}) {
+  function buildRemainOnExitArgs(target) {
+    return [";", "set-option", "-pt", target, "remain-on-exit", "failed"];
+  }
+
   function ensureInstalled() {
     const probe = runCommand("tmux", ["-V"], { allowFailure: true });
     if (probe.status !== 0) {
@@ -45,11 +49,29 @@ function createTmuxController({ cliScriptPath, runCommand = run } = {}) {
   }
 
   function newWindow(tmuxSession, windowName, command) {
-    runCommand("tmux", ["new-window", "-d", "-t", tmuxSession, "-n", windowName, command]);
+    runCommand("tmux", [
+      "new-window",
+      "-d",
+      "-t",
+      tmuxSession,
+      "-n",
+      windowName,
+      command,
+      ...buildRemainOnExitArgs(`${tmuxSession}:${windowName}`),
+    ]);
   }
 
   function newSession(tmuxSession, windowName, command) {
-    runCommand("tmux", ["new-session", "-d", "-s", tmuxSession, "-n", windowName, command]);
+    runCommand("tmux", [
+      "new-session",
+      "-d",
+      "-s",
+      tmuxSession,
+      "-n",
+      windowName,
+      command,
+      ...buildRemainOnExitArgs(`${tmuxSession}:${windowName}`),
+    ]);
   }
 
   function killWindow(tmuxSession, windowName) {

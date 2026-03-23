@@ -1,4 +1,4 @@
-const { defineConfig } = require("@_dev/sdk");
+const { defineConfig } = require("@hfossli/dev-sdk");
 
 module.exports = defineConfig(({ session }) => ({
   apps: {

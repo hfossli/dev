@@ -5,14 +5,13 @@ const { findConfigPath, loadRuntimeConfig } = require("./internal/config/load-co
 const { getItemDescription, createUsageError } = require("./internal/config/normalize-config.js");
 const { createTmuxController } = require("./internal/runtime/tmux.js");
 const { die } = require("./internal/runtime/process.js");
-const { sessionName } = require("../../@_dev/helpers/worktree.js");
+const { sessionName } = require("@hfossli/dev-helpers/worktree");
 const { handleTool } = require("./internal/commands/tool.js");
 const { handleCmd } = require("./internal/commands/cmd.js");
 const { handleStartOrRestart } = require("./internal/commands/start-restart.js");
 const { handleStop } = require("./internal/commands/stop.js");
 const { handleLogs } = require("./internal/commands/logs.js");
 const { handleTail } = require("./internal/commands/tail.js");
-const { handleSplitAttach } = require("./internal/commands/split-attach.js");
 const { handleAttach } = require("./internal/commands/attach.js");
 
 function buildRuntime({ root, config, configPath }) {
@@ -54,7 +53,6 @@ function validateParsedArgs(parsed, baseUsageText) {
     "attach",
     "logs",
     "tail",
-    "split-attach",
     "tool",
     "cmd",
   ]);
@@ -67,23 +65,18 @@ function validateParsedArgs(parsed, baseUsageText) {
   }
 
   const isStartLike = parsed.command === "start" || parsed.command === "restart";
-  if (!isStartLike && (parsed.attachRequested || parsed.splitAttachRequested)) {
-    throw createUsageError("Error: --attach and --split-attach are only supported for start/restart.");
+  if (!isStartLike && parsed.attachRequested) {
+    throw createUsageError("Error: --attach is only supported for start/restart.");
   }
-  if (parsed.attachRequested && parsed.splitAttachRequested) {
-    throw createUsageError("Error: --attach and --split-attach are mutually exclusive.");
-  }
-  if (
-    parsed.linesOverride !== null &&
-    !(
-      parsed.command === "logs" ||
-      parsed.command === "tail" ||
-      parsed.command === "split-attach" ||
-      (isStartLike && parsed.splitAttachRequested)
-    )
-  ) {
+  const allowsLines =
+    parsed.command === "logs" ||
+    parsed.command === "tail" ||
+    (parsed.command === "attach" && !parsed.app) ||
+    (isStartLike && parsed.attachRequested && parsed.app === "all");
+
+  if (parsed.linesOverride !== null && !allowsLines) {
     throw createUsageError(
-      "Error: --lines is only supported for logs, tail, split-attach, or start/restart with --split-attach."
+      "Error: --lines is only supported for logs, tail, attach, or start/restart all with --attach."
     );
   }
   if (parsed.untilMarker !== null && parsed.command !== "tail") {
@@ -162,9 +155,6 @@ async function main(argv = process.argv.slice(2)) {
         return;
       case "tail":
         handleTail(parsed, runtime);
-        return;
-      case "split-attach":
-        handleSplitAttach(parsed, runtime);
         return;
       case "attach":
         handleAttach(parsed, runtime);

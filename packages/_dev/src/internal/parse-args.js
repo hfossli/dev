@@ -26,7 +26,6 @@ function parseArgs(argv) {
   let untilMarker = null;
   let untilTimeoutSeconds = null;
   let attachRequested = false;
-  let splitAttachRequested = false;
   let help = false;
 
   for (let i = 0; i < argv.length; i++) {
@@ -42,12 +41,8 @@ function parseArgs(argv) {
       help = true;
       continue;
     }
-    if (arg === "--attach") {
+    if (arg === "--attach" || arg === "-a") {
       attachRequested = true;
-      continue;
-    }
-    if (arg === "--split-attach") {
-      splitAttachRequested = true;
       continue;
     }
     if (arg === "--lines") {
@@ -113,7 +108,6 @@ function parseArgs(argv) {
     untilMarker,
     untilTimeoutSeconds,
     attachRequested,
-    splitAttachRequested,
   };
 }
 

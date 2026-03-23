@@ -1,5 +1,5 @@
 {
-  "name": "_dev-monorepo",
+  "name": "dev-monorepo",
   "private": true,
   "workspaces": [
     "packages/*",

@@ -1,5 +1,5 @@
-const { defineConfig } = require("@_dev/sdk");
-const { getWorktreeRoot, leasePort } = require("@_dev/helpers");
+const { defineConfig } = require("@hfossli/dev-sdk");
+const { getWorktreeRoot, leasePort } = require("@hfossli/dev-helpers");
 
 module.exports = defineConfig(({ root, session }) => {
   const worktreeRoot = getWorktreeRoot(root);
