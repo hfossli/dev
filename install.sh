@@ -132,7 +132,9 @@ prompt_overwrite_path() {
 
   while true; do
     printf 'Overwrite %s? [y/N]: ' "$rel_path"
-    read -r answer || answer=""
+    if ! IFS= read -r -u 3 answer; then
+      answer=""
+    fi
     case "$answer" in
       [Yy]|[Yy][Ee][Ss])
         return 0
@@ -165,7 +167,7 @@ prompt_for_confirmation() {
   printf '\n'
   printf 'You will be asked yes/no before overwriting each changed file.\n'
   printf 'Press Enter to continue (Ctrl+C to cancel): '
-  read -r _
+  IFS= read -r -u 3 _
 }
 
 resolve_source_dir() {
@@ -250,6 +252,8 @@ install_from_source() {
 }
 
 main() {
+  exec 3<&0
+
   ensure_git_repo
   ensure_no_merge_or_rebase_in_progress
   ensure_clean_worktree
