@@ -91,8 +91,13 @@ function resolveToolCommand(toolName, toolDef, toolArgs) {
     const quotedArgs = toolArgs.map((arg) => shellQuote(arg)).join(" ");
     const plainArgs = toolArgs.join(" ");
     const command = executableDef(quotedArgs, toolArgs, plainArgs);
+    if (command == null) {
+      return null;
+    }
     if (typeof command !== "string" || !command.trim()) {
-      throw createUsageError(`Error: tool "${toolName}" must return a non-empty command string.`);
+      throw createUsageError(
+        `Error: tool "${toolName}" must return a non-empty command string when it returns a value.`
+      );
     }
     return command;
   }

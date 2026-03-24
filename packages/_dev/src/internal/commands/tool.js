@@ -20,6 +20,9 @@ function handleTool(parsed, runtime) {
   }
 
   const toolCommand = resolveToolCommand(toolName, tools[toolName], parsed.commandArgs);
+  if (toolCommand == null) {
+    return;
+  }
   const toolCommandWithPath = withInheritedPath(toolCommand);
 
   process.stdout.write(`Running tool "${toolName}": ${toolCommand}\n`);
