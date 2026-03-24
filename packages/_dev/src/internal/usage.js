@@ -27,7 +27,7 @@ function usage(appEntries = [], toolEntries = []) {
     "Examples:",
     "  npx dev start api",
     "  npx dev start api -a",
-    "  npx dev start all --attach --lines 200",
+    "  npx dev start all --attach",
     "  npx dev attach",
     "  npx dev attach web",
     "  npx dev restart all -a",

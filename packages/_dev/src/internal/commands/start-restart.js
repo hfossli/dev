@@ -1,7 +1,7 @@
 const { resolveStartCommand } = require("../config/normalize-config.js");
 const { shellQuote } = require("../runtime/shell.js");
 const { createUsageError } = require("../config/normalize-config.js");
-const { dieWithUsage, resolveLineCount } = require("./shared.js");
+const { dieWithUsage } = require("./shared.js");
 
 function buildWrappedCommand(root, command) {
   return `cd ${shellQuote(root)} && ${command}`;
@@ -27,18 +27,18 @@ function handleStartOrRestart(parsed, runtime) {
     }
 
     if (!isRestart && sessionExists) {
-      const existingWindows = appNames.filter((name) => tmux.windowExists(tmuxSession, name));
-      if (existingWindows.length > 0) {
+      const existingApps = appNames.filter((name) => tmux.appExists(tmuxSession, name));
+      if (existingApps.length > 0) {
         throw createUsageError(
-          `Error: cannot start all because these windows already exist in session "${tmuxSession}": ${existingWindows.join(", ")}.`
+          `Error: cannot start all because these apps already exist in session "${tmuxSession}": ${existingApps.join(", ")}.`
         );
       }
     }
 
     if (isRestart && sessionExists) {
       for (const name of appNames) {
-        if (tmux.windowExists(tmuxSession, name)) {
-          tmux.killWindow(tmuxSession, name);
+        if (tmux.appExists(tmuxSession, name)) {
+          tmux.killApp(tmuxSession, name);
         }
       }
       sessionExists = tmux.sessionExists(tmuxSession);
@@ -52,12 +52,15 @@ function handleStartOrRestart(parsed, runtime) {
     if (sessionExists) {
       for (const entry of startEntries) {
         tmux.newWindow(tmuxSession, entry.name, entry.wrappedCommand);
+        tmux.labelAppPane(tmuxSession, entry.name);
       }
     } else {
       const [firstEntry, ...restEntries] = startEntries;
       tmux.newSession(tmuxSession, firstEntry.name, firstEntry.wrappedCommand);
+      tmux.labelAppPane(tmuxSession, firstEntry.name);
       for (const entry of restEntries) {
         tmux.newWindow(tmuxSession, entry.name, entry.wrappedCommand);
+        tmux.labelAppPane(tmuxSession, entry.name);
       }
     }
 
@@ -74,12 +77,12 @@ function handleStartOrRestart(parsed, runtime) {
 
     const wrappedCommand = buildWrappedCommand(root, resolveStartCommand(parsed.app, apps[parsed.app]));
 
-    if (!isRestart && sessionExists && tmux.windowExists(tmuxSession, parsed.app)) {
-      throw createUsageError(`Error: window "${parsed.app}" already exists in session "${tmuxSession}".`);
+    if (!isRestart && sessionExists && tmux.appExists(tmuxSession, parsed.app)) {
+      throw createUsageError(`Error: app "${parsed.app}" already exists in session "${tmuxSession}".`);
     }
 
-    if (isRestart && sessionExists && tmux.windowExists(tmuxSession, parsed.app)) {
-      tmux.killWindow(tmuxSession, parsed.app);
+    if (isRestart && sessionExists && tmux.appExists(tmuxSession, parsed.app)) {
+      tmux.killApp(tmuxSession, parsed.app);
       sessionExists = tmux.sessionExists(tmuxSession);
     }
 
@@ -88,6 +91,7 @@ function handleStartOrRestart(parsed, runtime) {
     } else {
       tmux.newSession(tmuxSession, parsed.app, wrappedCommand);
     }
+    tmux.labelAppPane(tmuxSession, parsed.app);
 
     process.stdout.write(
       `${isRestart ? "Restarted" : "Started"} app "${parsed.app}" in session "${tmuxSession}" (window "${parsed.app}").\n`
@@ -99,15 +103,12 @@ function handleStartOrRestart(parsed, runtime) {
 
   if (parsed.attachRequested) {
     if (parsed.app === "all") {
-      const lines = resolveLineCount(parsed.linesOverride);
       tmux.openSplitAttachWindow({
-        root,
         tmuxSession,
         appNames,
-        lines,
       });
     } else {
-      tmux.selectWindow(tmuxSession, parsed.app);
+      tmux.selectApp(tmuxSession, parsed.app);
     }
     tmux.attachSession(tmuxSession);
     return;

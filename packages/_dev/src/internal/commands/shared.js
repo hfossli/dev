@@ -35,8 +35,8 @@ function ensureAppTarget({ appName, apps, usageText, tmuxSession, tmux }) {
     throw createUsageError(`Error: session "${tmuxSession}" does not exist.`);
   }
 
-  if (!tmux.windowExists(tmuxSession, appName)) {
-    throw createUsageError(`Error: window "${appName}" does not exist in session "${tmuxSession}".`);
+  if (!tmux.appExists(tmuxSession, appName)) {
+    throw createUsageError(`Error: app "${appName}" does not exist in session "${tmuxSession}".`);
   }
 }
 

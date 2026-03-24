@@ -1,8 +1,8 @@
 const { createUsageError } = require("../config/normalize-config.js");
-const { ensureAppDefined, resolveLineCount } = require("./shared.js");
+const { ensureAppDefined } = require("./shared.js");
 
 function handleAttach(parsed, runtime) {
-  const { appNames, apps, root, tmux, tmuxSession, usageText } = runtime;
+  const { appNames, apps, tmux, tmuxSession, usageText } = runtime;
 
   tmux.ensureInstalled();
 
@@ -21,19 +21,17 @@ function handleAttach(parsed, runtime) {
     }
 
     ensureAppDefined({ appName: parsed.app, apps, usageText });
-    if (!tmux.windowExists(tmuxSession, parsed.app)) {
-      throw createUsageError(`Error: window "${parsed.app}" does not exist in session "${tmuxSession}".`);
+    if (!tmux.appExists(tmuxSession, parsed.app)) {
+      throw createUsageError(`Error: app "${parsed.app}" does not exist in session "${tmuxSession}".`);
     }
-    tmux.selectWindow(tmuxSession, parsed.app);
+    tmux.selectApp(tmuxSession, parsed.app);
     tmux.attachSession(tmuxSession);
     return;
   }
 
   tmux.openSplitAttachWindow({
-    root,
     tmuxSession,
     appNames,
-    lines: resolveLineCount(parsed.linesOverride),
   });
   tmux.attachSession(tmuxSession);
 }

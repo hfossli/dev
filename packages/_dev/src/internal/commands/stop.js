@@ -27,11 +27,11 @@ function handleStop(parsed, runtime) {
     return;
   }
 
-  if (!tmux.windowExists(tmuxSession, parsed.app)) {
-    throw createUsageError(`Error: window "${parsed.app}" does not exist in session "${tmuxSession}".`);
+  if (!tmux.appExists(tmuxSession, parsed.app)) {
+    throw createUsageError(`Error: app "${parsed.app}" does not exist in session "${tmuxSession}".`);
   }
 
-  tmux.killWindow(tmuxSession, parsed.app);
+  tmux.killApp(tmuxSession, parsed.app);
   process.stdout.write(`Stopped app "${parsed.app}" in session "${tmuxSession}".\n`);
 }
 

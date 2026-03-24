@@ -1,8 +1,9 @@
-const path = require("node:path");
 const { run } = require("./process.js");
-const { shellQuote } = require("./shell.js");
 
-function createTmuxController({ cliScriptPath, runCommand = run } = {}) {
+const APP_OPTION = "@dev_app_name";
+const SPLIT_ATTACH_WINDOW = "split-attach";
+
+function createTmuxController({ runCommand = run } = {}) {
   function buildRemainOnExitArgs(target) {
     return [";", "set-option", "-pt", target, "remain-on-exit", "failed"];
   }
@@ -31,14 +32,88 @@ function createTmuxController({ cliScriptPath, runCommand = run } = {}) {
       .filter(Boolean);
   }
 
+  function listPanes(tmuxSession) {
+    const listed = runCommand(
+      "tmux",
+      [
+        "list-panes",
+        "-a",
+        "-t",
+        tmuxSession,
+        "-F",
+        `#{pane_id}\t#{window_name}\t#{window_id}\t#{pane_index}\t#{pane_active}\t#{${APP_OPTION}}`,
+      ],
+      {
+        allowFailure: true,
+      }
+    );
+    if (listed.status !== 0) return [];
+    return listed.stdout
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const [paneId, windowName, windowId, paneIndex, paneActive, appName] = line.split("\t");
+        return {
+          paneId,
+          windowName,
+          windowId,
+          paneIndex: Number.parseInt(paneIndex, 10) || 0,
+          paneActive: paneActive === "1",
+          appName: appName || "",
+        };
+      });
+  }
+
   function windowExists(tmuxSession, windowName) {
     return listWindows(tmuxSession).includes(windowName);
   }
 
+  function setPaneOption(target, name, value) {
+    runCommand("tmux", ["set-option", "-pt", target, name, value]);
+  }
+
+  function setPaneTitle(target, title) {
+    runCommand("tmux", ["select-pane", "-t", target, "-T", title], {
+      allowFailure: true,
+    });
+  }
+
+  function labelAppPane(tmuxSession, appName, target = `${tmuxSession}:${appName}.0`) {
+    setPaneOption(target, APP_OPTION, appName);
+    setPaneTitle(target, appName);
+  }
+
+  function findAppPane(tmuxSession, appName) {
+    const pane = listPanes(tmuxSession).find((entry) => entry.appName === appName);
+    if (pane) return pane;
+
+    if (!windowExists(tmuxSession, appName)) {
+      return null;
+    }
+
+    const target = `${tmuxSession}:${appName}.0`;
+    labelAppPane(tmuxSession, appName, target);
+    return {
+      paneId: target,
+      windowName: appName,
+      windowId: "",
+      paneIndex: 0,
+      paneActive: false,
+      appName,
+    };
+  }
+
+  function appExists(tmuxSession, appName) {
+    return findAppPane(tmuxSession, appName) !== null;
+  }
+
   function captureWindowLogs(tmuxSession, appName, lines) {
+    const pane = findAppPane(tmuxSession, appName);
+    const target = pane ? pane.paneId : `${tmuxSession}:${appName}`;
     const captured = runCommand(
       "tmux",
-      ["capture-pane", "-p", "-J", "-S", `-${lines}`, "-t", `${tmuxSession}:${appName}`],
+      ["capture-pane", "-e", "-p", "-J", "-S", `-${lines}`, "-t", target],
       { allowFailure: true }
     );
     if (captured.status !== 0) {
@@ -90,6 +165,12 @@ function createTmuxController({ cliScriptPath, runCommand = run } = {}) {
     });
   }
 
+  function selectPane(target) {
+    runCommand("tmux", ["select-pane", "-t", target], {
+      allowFailure: true,
+    });
+  }
+
   function enableMouse(tmuxSession) {
     runCommand("tmux", ["set-option", "-t", tmuxSession, "mouse", "on"]);
   }
@@ -109,56 +190,141 @@ function createTmuxController({ cliScriptPath, runCommand = run } = {}) {
     });
   }
 
-  function buildTailPaneCommand({ root, appName, lines }) {
-    const scriptPath = cliScriptPath || path.resolve(process.argv[1] || "");
-    return (
-      `cd ${shellQuote(root)} && ` +
-      `node ${shellQuote(scriptPath)} tail ${shellQuote(appName)} --lines ${lines}`
-    );
+  function sendKeysToWindow(tmuxSession, windowName, keys) {
+    runCommand("tmux", ["send-keys", "-t", `${tmuxSession}:${windowName}`, ...keys], {
+      allowFailure: true,
+    });
   }
 
-  function openSplitAttachWindow({ root, tmuxSession, appNames, lines }) {
-    const splitWindowName = "split-attach";
-    const activeApps = appNames.filter((appName) => windowExists(tmuxSession, appName));
-    if (activeApps.length === 0) {
+  function sendKeysToApp(tmuxSession, appName, keys) {
+    const pane = findAppPane(tmuxSession, appName);
+    if (!pane) return;
+    runCommand("tmux", ["send-keys", "-t", pane.paneId, ...keys], {
+      allowFailure: true,
+    });
+  }
+
+  function killPane(target) {
+    runCommand("tmux", ["kill-pane", "-t", target], {
+      allowFailure: true,
+    });
+  }
+
+  function killApp(tmuxSession, appName) {
+    const pane = findAppPane(tmuxSession, appName);
+    if (!pane) return false;
+    killPane(pane.paneId);
+    return true;
+  }
+
+  function renameWindow(tmuxSession, currentWindowName, nextWindowName) {
+    runCommand("tmux", ["rename-window", "-t", `${tmuxSession}:${currentWindowName}`, nextWindowName], {
+      allowFailure: true,
+    });
+  }
+
+  function joinPane(sourcePaneId, targetPaneId) {
+    runCommand("tmux", ["join-pane", "-d", "-s", sourcePaneId, "-t", targetPaneId]);
+  }
+
+  function selectLayout(target, layout) {
+    runCommand("tmux", ["select-layout", "-t", target, layout], {
+      allowFailure: true,
+    });
+  }
+
+  function configureSplitAttachWindow(tmuxSession) {
+    const target = `${tmuxSession}:${SPLIT_ATTACH_WINDOW}`;
+    runCommand("tmux", ["set-window-option", "-t", target, "pane-border-status", "top"], {
+      allowFailure: true,
+    });
+    runCommand("tmux", ["set-window-option", "-t", target, "pane-border-format", "#{@dev_app_name}"], {
+      allowFailure: true,
+    });
+  }
+
+  function selectApp(tmuxSession, appName) {
+    const pane = findAppPane(tmuxSession, appName);
+    if (!pane) return false;
+    selectWindow(tmuxSession, pane.windowName);
+    selectPane(pane.paneId);
+    return true;
+  }
+
+  function openSplitAttachWindow({ tmuxSession, appNames }) {
+    const activeAppNames = appNames.filter((appName) => findAppPane(tmuxSession, appName));
+    if (activeAppNames.length === 0) {
       const error = new Error(`Error: no active app windows found in session "${tmuxSession}".`);
       error.isUsageError = true;
       throw error;
     }
 
-    if (windowExists(tmuxSession, splitWindowName)) {
-      killWindow(tmuxSession, splitWindowName);
+    const panes = listPanes(tmuxSession);
+    const dashboardPanes = panes.filter((pane) => pane.windowName === SPLIT_ATTACH_WINDOW);
+    const dashboardAppPanes = dashboardPanes.filter((pane) => pane.appName);
+
+    if (dashboardPanes.length > 0 && dashboardAppPanes.length === 0) {
+      killWindow(tmuxSession, SPLIT_ATTACH_WINDOW);
     }
 
-    const [firstApp, ...restApps] = activeApps;
-    newWindow(tmuxSession, splitWindowName, buildTailPaneCommand({ root, appName: firstApp, lines }));
+    let basePane = listPanes(tmuxSession).find(
+      (pane) => pane.windowName === SPLIT_ATTACH_WINDOW && pane.appName
+    );
 
-    for (const appName of restApps) {
-      runCommand("tmux", [
-        "split-window",
-        "-d",
-        "-t",
-        `${tmuxSession}:${splitWindowName}`,
-        "-v",
-        buildTailPaneCommand({ root, appName, lines }),
-      ]);
-      runCommand("tmux", ["select-layout", "-t", `${tmuxSession}:${splitWindowName}`, "tiled"]);
+    if (!basePane) {
+      const [firstAppName] = activeAppNames;
+      const firstPane = findAppPane(tmuxSession, firstAppName);
+      if (firstPane && firstPane.windowName !== SPLIT_ATTACH_WINDOW) {
+        renameWindow(tmuxSession, firstPane.windowName, SPLIT_ATTACH_WINDOW);
+      }
+      basePane = findAppPane(tmuxSession, firstAppName);
     }
 
-    selectWindow(tmuxSession, splitWindowName);
+    if (!basePane) {
+      const error = new Error(`Error: failed to prepare split attach window for session "${tmuxSession}".`);
+      error.isUsageError = true;
+      throw error;
+    }
+
+    for (const pane of listPanes(tmuxSession)) {
+      if (pane.windowName === SPLIT_ATTACH_WINDOW && !pane.appName) {
+        killPane(pane.paneId);
+      }
+    }
+
+    for (const appName of activeAppNames) {
+      const pane = findAppPane(tmuxSession, appName);
+      if (!pane) continue;
+      if (pane.paneId === basePane.paneId || pane.windowName === SPLIT_ATTACH_WINDOW) continue;
+      joinPane(pane.paneId, basePane.paneId);
+      selectLayout(`${tmuxSession}:${SPLIT_ATTACH_WINDOW}`, "tiled");
+    }
+
+    configureSplitAttachWindow(tmuxSession);
+    selectWindow(tmuxSession, SPLIT_ATTACH_WINDOW);
+    selectPane(basePane.paneId);
   }
 
   return {
+    appExists,
     attachSession,
     captureWindowLogs,
     enableMouse,
     ensureInstalled,
+    findAppPane,
     killSession,
+    killApp,
+    killPane,
     killWindow,
+    labelAppPane,
     listWindows,
     newSession,
     newWindow,
     openSplitAttachWindow,
+    selectApp,
+    selectPane,
+    sendKeysToWindow,
+    sendKeysToApp,
     selectWindow,
     sessionExists,
     windowExists,

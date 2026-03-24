@@ -6,6 +6,7 @@ const { validateParsedArgs } = require("../packages/_dev/src/cli.js");
 const { handleAttach } = require("../packages/_dev/src/internal/commands/attach.js");
 const { handleStartOrRestart } = require("../packages/_dev/src/internal/commands/start-restart.js");
 const { handleLogs } = require("../packages/_dev/src/internal/commands/logs.js");
+const { handleStop } = require("../packages/_dev/src/internal/commands/stop.js");
 
 function createBaseRuntime() {
   return {
@@ -31,7 +32,7 @@ test("start refuses to create a window that already exists", () => {
     sessionExists() {
       return true;
     },
-    windowExists(_session, name) {
+    appExists(_session, name) {
       return name === "api";
     },
   };
@@ -68,6 +69,9 @@ test("start all with --attach opens the split attach view", () => {
     newSession(session, name, command) {
       calls.push(["newSession", session, name, command]);
     },
+    labelAppPane(session, name) {
+      calls.push(["labelAppPane", session, name]);
+    },
     enableMouse(session) {
       calls.push(["enableMouse", session]);
     },
@@ -93,15 +97,15 @@ test("start all with --attach opens the split attach view", () => {
     ["ensureInstalled"],
     ["sessionExists", "dev-e2e-test"],
     ["newSession", "dev-e2e-test", "api", "cd '/tmp/project' && pnpm api"],
+    ["labelAppPane", "dev-e2e-test", "api"],
     ["newWindow", "dev-e2e-test", "web", "cd '/tmp/project' && pnpm web"],
+    ["labelAppPane", "dev-e2e-test", "web"],
     ["enableMouse", "dev-e2e-test"],
     [
       "openSplitAttachWindow",
       {
-        root: "/tmp/project",
         tmuxSession: "dev-e2e-test",
         appNames: ["api", "web"],
-        lines: 180,
       },
     ],
     ["attachSession", "dev-e2e-test"],
@@ -122,11 +126,14 @@ test("start app with --attach selects the started window", () => {
     newSession(session, name, command) {
       calls.push(["newSession", session, name, command]);
     },
+    labelAppPane(session, name) {
+      calls.push(["labelAppPane", session, name]);
+    },
     enableMouse(session) {
       calls.push(["enableMouse", session]);
     },
-    selectWindow(session, name) {
-      calls.push(["selectWindow", session, name]);
+    selectApp(session, name) {
+      calls.push(["selectApp", session, name]);
     },
     attachSession(session) {
       calls.push(["attachSession", session]);
@@ -147,8 +154,9 @@ test("start app with --attach selects the started window", () => {
     ["ensureInstalled"],
     ["sessionExists", "dev-e2e-test"],
     ["newSession", "dev-e2e-test", "web", "cd '/tmp/project' && pnpm web"],
+    ["labelAppPane", "dev-e2e-test", "web"],
     ["enableMouse", "dev-e2e-test"],
-    ["selectWindow", "dev-e2e-test", "web"],
+    ["selectApp", "dev-e2e-test", "web"],
     ["attachSession", "dev-e2e-test"],
   ]);
 });
@@ -160,7 +168,7 @@ test("logs surfaces tmux capture failures", () => {
     sessionExists() {
       return true;
     },
-    windowExists() {
+    appExists() {
       return true;
     },
     captureWindowLogs() {
@@ -218,10 +226,8 @@ test("attach without an app opens the split attach window", () => {
     [
       "openSplitAttachWindow",
       {
-        root: "/tmp/project",
         tmuxSession: "dev-e2e-test",
         appNames: ["api", "web"],
-        lines: 250,
       },
     ],
     ["attachSession", "dev-e2e-test"],
@@ -242,12 +248,12 @@ test("attach with an app selects the requested window", () => {
     enableMouse(session) {
       calls.push(["enableMouse", session]);
     },
-    windowExists(session, name) {
-      calls.push(["windowExists", session, name]);
+    appExists(session, name) {
+      calls.push(["appExists", session, name]);
       return name === "web";
     },
-    selectWindow(session, name) {
-      calls.push(["selectWindow", session, name]);
+    selectApp(session, name) {
+      calls.push(["selectApp", session, name]);
     },
     attachSession(session) {
       calls.push(["attachSession", session]);
@@ -266,8 +272,8 @@ test("attach with an app selects the requested window", () => {
     ["ensureInstalled"],
     ["sessionExists", "dev-e2e-test"],
     ["enableMouse", "dev-e2e-test"],
-    ["windowExists", "dev-e2e-test", "web"],
-    ["selectWindow", "dev-e2e-test", "web"],
+    ["appExists", "dev-e2e-test", "web"],
+    ["selectApp", "dev-e2e-test", "web"],
     ["attachSession", "dev-e2e-test"],
   ]);
 });
@@ -293,6 +299,41 @@ test("attach with an app rejects --lines", () => {
       ),
     /does not support --lines/
   );
+});
+
+test("stop app kills the tagged app pane even after layout changes", () => {
+  const runtime = createBaseRuntime();
+  const calls = [];
+  runtime.tmux = {
+    ensureInstalled() {
+      calls.push(["ensureInstalled"]);
+    },
+    sessionExists(session) {
+      calls.push(["sessionExists", session]);
+      return true;
+    },
+    appExists(session, name) {
+      calls.push(["appExists", session, name]);
+      return name === "web";
+    },
+    killApp(session, name) {
+      calls.push(["killApp", session, name]);
+    },
+  };
+
+  handleStop(
+    {
+      app: "web",
+    },
+    runtime
+  );
+
+  assert.deepEqual(calls, [
+    ["ensureInstalled"],
+    ["sessionExists", "dev-e2e-test"],
+    ["appExists", "dev-e2e-test", "web"],
+    ["killApp", "dev-e2e-test", "web"],
+  ]);
 });
 
 test("attach supports --lines and split-attach is no longer a command", () => {
