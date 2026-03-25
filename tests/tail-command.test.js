@@ -42,31 +42,19 @@ test("renderTailSnapshot clears and redraws in split-attach mirror mode", () => 
   assert.equal(rendered.nextSnapshot, "\u001b[32mready\u001b[39m");
 });
 
-test("handleInteractiveInputChunk forwards c and r to the backing app window", () => {
+test("handleInteractiveInputChunk forwards literal text to the backing app window", () => {
   const calls = [];
   const tmux = {
-    sendKeysToApp(session, appName, keys) {
-      calls.push([session, appName, keys]);
+    sendKeysToApp(session, appName, keys, options = {}) {
+      calls.push([session, appName, keys, options]);
     },
   };
 
   assert.equal(
-    handleInteractiveInputChunk("c", {
+    handleInteractiveInputChunk("cr", {
       appName: "web",
       stopTail() {
-        throw new Error("stopTail should not be called for c");
-      },
-      tmux,
-      tmuxSession: "dev-e2e-test",
-    }),
-    true
-  );
-
-  assert.equal(
-    handleInteractiveInputChunk("r", {
-      appName: "web",
-      stopTail() {
-        throw new Error("stopTail should not be called for r");
+        throw new Error("stopTail should not be called for literal text");
       },
       tmux,
       tmuxSession: "dev-e2e-test",
@@ -75,8 +63,7 @@ test("handleInteractiveInputChunk forwards c and r to the backing app window", (
   );
 
   assert.deepEqual(calls, [
-    ["dev-e2e-test", "web", ["c"]],
-    ["dev-e2e-test", "web", ["r"]],
+    ["dev-e2e-test", "web", ["cr"], { literal: true }],
   ]);
 });
 
@@ -100,4 +87,29 @@ test("handleInteractiveInputChunk stops the mirror tail on ctrl-c", () => {
   assert.equal(handled, true);
   assert.equal(stoppedWith, 0);
   assert.deepEqual(calls, []);
+});
+
+test("handleInteractiveInputChunk forwards common special keys to the backing app window", () => {
+  const calls = [];
+
+  const handled = handleInteractiveInputChunk("\u001b[A\r\u007f\u0004", {
+    appName: "api",
+    stopTail() {
+      throw new Error("stopTail should not be called for forwarded keys");
+    },
+    tmux: {
+      sendKeysToApp(session, appName, keys, options = {}) {
+        calls.push([session, appName, keys, options]);
+      },
+    },
+    tmuxSession: "dev-e2e-test",
+  });
+
+  assert.equal(handled, true);
+  assert.deepEqual(calls, [
+    ["dev-e2e-test", "api", ["Up"], {}],
+    ["dev-e2e-test", "api", ["Enter"], {}],
+    ["dev-e2e-test", "api", ["BSpace"], {}],
+    ["dev-e2e-test", "api", ["C-d"], {}],
+  ]);
 });

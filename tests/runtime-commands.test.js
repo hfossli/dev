@@ -106,6 +106,8 @@ test("start all with --attach opens the split attach view", () => {
       {
         tmuxSession: "dev-e2e-test",
         appNames: ["api", "web"],
+        lines: 180,
+        root: "/tmp/project",
       },
     ],
     ["attachSession", "dev-e2e-test"],
@@ -228,6 +230,8 @@ test("attach without an app opens the split attach window", () => {
       {
         tmuxSession: "dev-e2e-test",
         appNames: ["api", "web"],
+        lines: 250,
+        root: "/tmp/project",
       },
     ],
     ["attachSession", "dev-e2e-test"],

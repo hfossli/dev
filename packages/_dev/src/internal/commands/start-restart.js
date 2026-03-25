@@ -1,7 +1,7 @@
 const { resolveStartCommand } = require("../config/normalize-config.js");
 const { shellQuote } = require("../runtime/shell.js");
 const { createUsageError } = require("../config/normalize-config.js");
-const { dieWithUsage } = require("./shared.js");
+const { dieWithUsage, resolveLineCount } = require("./shared.js");
 
 function buildWrappedCommand(root, command) {
   return `cd ${shellQuote(root)} && ${command}`;
@@ -103,9 +103,12 @@ function handleStartOrRestart(parsed, runtime) {
 
   if (parsed.attachRequested) {
     if (parsed.app === "all") {
+      const lines = resolveLineCount(parsed.linesOverride);
       tmux.openSplitAttachWindow({
         tmuxSession,
         appNames,
+        lines,
+        root,
       });
     } else {
       tmux.selectApp(tmuxSession, parsed.app);

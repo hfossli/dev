@@ -1,8 +1,8 @@
 const { createUsageError } = require("../config/normalize-config.js");
-const { ensureAppDefined } = require("./shared.js");
+const { ensureAppDefined, resolveLineCount } = require("./shared.js");
 
 function handleAttach(parsed, runtime) {
-  const { appNames, apps, tmux, tmuxSession, usageText } = runtime;
+  const { appNames, apps, root, tmux, tmuxSession, usageText } = runtime;
 
   tmux.ensureInstalled();
 
@@ -29,9 +29,12 @@ function handleAttach(parsed, runtime) {
     return;
   }
 
+  const lines = resolveLineCount(parsed.linesOverride);
   tmux.openSplitAttachWindow({
     tmuxSession,
     appNames,
+    lines,
+    root,
   });
   tmux.attachSession(tmuxSession);
 }

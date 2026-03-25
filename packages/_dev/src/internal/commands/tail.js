@@ -2,6 +2,18 @@ const { ensureAppTarget, getOverlapCount, resolveLineCount } = require("./shared
 
 const SPLIT_ATTACH_ENV = "_DEV_SPLIT_ATTACH";
 const CLEAR_SCREEN = "\u001b[2J\u001b[H";
+const ESCAPE_SEQUENCE_KEYS = new Map([
+  ["\u001b[A", "Up"],
+  ["\u001b[B", "Down"],
+  ["\u001b[C", "Right"],
+  ["\u001b[D", "Left"],
+  ["\u001b[H", "Home"],
+  ["\u001b[F", "End"],
+  ["\u001b[3~", "Delete"],
+  ["\u001b[5~", "PageUp"],
+  ["\u001b[6~", "PageDown"],
+  ["\u001b[Z", "BTab"],
+]);
 
 function renderTailSnapshot({
   snapshot,
@@ -38,6 +50,97 @@ function renderTailSnapshot({
   };
 }
 
+function flushLiteralBuffer(buffer, { appName, tmux, tmuxSession }) {
+  if (!buffer) return;
+  tmux.sendKeysToApp(tmuxSession, appName, [buffer], { literal: true });
+}
+
+function forwardInteractiveInput(text, { appName, tmux, tmuxSession }) {
+  let literalBuffer = "";
+  let forwarded = false;
+
+  for (let index = 0; index < text.length; ) {
+    const remaining = text.slice(index);
+    let handledEscape = false;
+
+    if (remaining.startsWith("\u001b")) {
+      for (const [sequence, keyName] of ESCAPE_SEQUENCE_KEYS) {
+        if (!remaining.startsWith(sequence)) continue;
+        flushLiteralBuffer(literalBuffer, { appName, tmux, tmuxSession });
+        literalBuffer = "";
+        tmux.sendKeysToApp(tmuxSession, appName, [keyName]);
+        forwarded = true;
+        index += sequence.length;
+        handledEscape = true;
+        break;
+      }
+
+      if (handledEscape) {
+        continue;
+      }
+    }
+
+    const char = text[index];
+    const codePoint = char.charCodeAt(0);
+
+    if (char === "\r" || char === "\n") {
+      flushLiteralBuffer(literalBuffer, { appName, tmux, tmuxSession });
+      literalBuffer = "";
+      tmux.sendKeysToApp(tmuxSession, appName, ["Enter"]);
+      forwarded = true;
+      index += 1;
+      if (char === "\r" && text[index] === "\n") {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (char === "\t") {
+      flushLiteralBuffer(literalBuffer, { appName, tmux, tmuxSession });
+      literalBuffer = "";
+      tmux.sendKeysToApp(tmuxSession, appName, ["Tab"]);
+      forwarded = true;
+      index += 1;
+      continue;
+    }
+
+    if (char === "\u007f" || char === "\b") {
+      flushLiteralBuffer(literalBuffer, { appName, tmux, tmuxSession });
+      literalBuffer = "";
+      tmux.sendKeysToApp(tmuxSession, appName, ["BSpace"]);
+      forwarded = true;
+      index += 1;
+      continue;
+    }
+
+    if (char === "\u001b") {
+      flushLiteralBuffer(literalBuffer, { appName, tmux, tmuxSession });
+      literalBuffer = "";
+      tmux.sendKeysToApp(tmuxSession, appName, ["Escape"]);
+      forwarded = true;
+      index += 1;
+      continue;
+    }
+
+    if (codePoint > 0 && codePoint < 32) {
+      flushLiteralBuffer(literalBuffer, { appName, tmux, tmuxSession });
+      literalBuffer = "";
+      const controlKey = `C-${String.fromCharCode(codePoint + 96)}`;
+      tmux.sendKeysToApp(tmuxSession, appName, [controlKey]);
+      forwarded = true;
+      index += 1;
+      continue;
+    }
+
+    literalBuffer += char;
+    forwarded = true;
+    index += 1;
+  }
+
+  flushLiteralBuffer(literalBuffer, { appName, tmux, tmuxSession });
+  return forwarded;
+}
+
 function handleInteractiveInputChunk(chunk, { appName, stopTail, tmux, tmuxSession }) {
   const text = Buffer.isBuffer(chunk) ? chunk.toString("utf8") : String(chunk);
 
@@ -46,12 +149,11 @@ function handleInteractiveInputChunk(chunk, { appName, stopTail, tmux, tmuxSessi
     return true;
   }
 
-  if (text === "c" || text === "r") {
-    tmux.sendKeysToApp(tmuxSession, appName, [text]);
-    return true;
-  }
-
-  return false;
+  return forwardInteractiveInput(text, {
+    appName,
+    tmux,
+    tmuxSession,
+  });
 }
 
 function handleTail(parsed, runtime) {
