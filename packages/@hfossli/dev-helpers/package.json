@@ -1,5 +1,12 @@
 {
   "name": "@hfossli/dev-helpers",
   "private": true,
-  "main": "index.js"
+  "main": "index.js",
+  "bin": {
+    "git-main-merge": "bin/git-main-merge.js",
+    "git-main-pull": "bin/git-main-pull.js",
+    "ios-sim-boot": "bin/ios-sim-boot.js",
+    "ios-sim-lease": "bin/ios-sim-lease.js",
+    "portlease": "bin/portlease.js"
+  }
 }
